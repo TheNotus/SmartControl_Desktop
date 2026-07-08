@@ -1134,15 +1134,7 @@ class MainWindow(QMainWindow):
             set_checked_silent(self.bass_cb, bool(data[0]))
         elif pdu == P.notification_of(P.Cmd.EQ_GET_BAND_GAIN) and len(data) == 5:
             curve = [b - 256 if b > 127 else b for b in data]
-            self.eq_curve_label.setText(
-                tr("Итоговая кривая (вместе с Sound Check): {values}")
-                .format(values=", ".join(str(v) for v in curve)))
-        elif pdu == P.notification_of(P.Cmd.EQ_GET_USER_GAIN) and len(data) >= 15:
-            gains = []
-            for i in range(0, 15, 3):
-                v = (data[i + 1] << 8) | data[i + 2]
-                gains.append(v - 65536 if v > 32767 else v)
-            self._apply_eq_state(gains, None, None)
+            self._apply_eq_state(curve, curve, None)
 
     # ----------------------------------------------------------------- setting handlers
     def run_set(self, fn, revert_widget=None, revert_value=None):

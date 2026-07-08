@@ -154,18 +154,14 @@ class Momentum4:
         return freqs
 
     def get_user_eq(self) -> list[Optional[int]]:
-        """Записываемая таблица пользовательских гейнов (i16 на полосу)."""
-        gains = []
-        for band in range(5):
-            data = self.c.try_request(P.Cmd.EQ_GET_USER_GAIN, bytes([band]),
-                                      timeout=2.0)
-            gains.append(self._i16(data[1], data[2])
-                         if data and len(data) >= 3 else None)
-        return gains
+        """Активные гейны полос (совпадают с итоговой кривой)."""
+        curve = self.get_eq_curve()
+        return curve if curve else [None] * 5
 
     def set_user_eq_band(self, band: int, gain: int):
-        payload = bytes([band]) + int(gain).to_bytes(2, "big", signed=True)
-        self.c.request(P.Cmd.EQ_SET_USER_GAIN, payload)
+        gain = max(-128, min(127, int(gain)))
+        payload = bytes([band, gain & 0xFF])
+        self.c.request(P.Cmd.EQ_SET_BAND_GAIN, payload)
 
     def set_user_eq(self, gains: list[int]):
         for band, gain in enumerate(gains[:5]):

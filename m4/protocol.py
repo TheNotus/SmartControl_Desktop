@@ -134,6 +134,7 @@ class Cmd:
     GET_LOW_LATENCY = 0x0818
 
     # ---- user EQ (feature 8) ----
+    EQ_SET_BAND_GAIN = 0x1001         # (band u8, gain i8) — активный EQ
     EQ_GET_BAND_GAIN = 0x1002         # [band] -> i8 gain of resulting curve
     EQ_GET_CURVE = 0x1003             # [0] -> 5 x i8 (итоговая кривая, read-only)
     SET_BASS_BOOST = 0x1008           # u8 0/1
@@ -144,10 +145,10 @@ class Cmd:
     EQ_GET_BAND_Q = 0x100D
     EQ_SET_BAND_RANGE = 0x100E        # (band u8, u8)
     EQ_GET_BAND_RANGE = 0x100F
-    EQ_SET_USER_GAIN = 0x1010         # (band u8, gain i16) — записываемая таблица
-    EQ_GET_USER_GAIN = 0x1011         # [band] -> (band, gain i16)
-    EQ_SET_UNKNOWN12 = 0x1012
-    EQ_GET_UNKNOWN13 = 0x1013         # -> 2 bytes
+    EQ_SET_USER_GAIN = 0x1010         # (band u8, gain i16) — таблица-хранилище,
+    EQ_GET_USER_GAIN = 0x1011         # в звуковой тракт не подмешивается
+    EQ_SET_PRESET = 0x1012            # (slot u8, preset u8)
+    EQ_GET_PRESET = 0x1013            # -> (slot, preset)
 
     # ---- paired devices list (feature 10) ----
     PDL_SIZE = 0x1400                 # -> u16 count
