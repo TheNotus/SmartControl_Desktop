@@ -83,6 +83,12 @@ _EN = {
     # --- sound ---
     "Режимы звука": "Sound modes",
     "Усиление низких частот": "Low frequency boost",
+    "Усиление низких частот (+4 дБ, поверх эквалайзера)":
+        "Low frequency boost (+4 dB, on top of the equalizer)",
+    "Показываются только жесты, которые наушники разрешают переназначать: "
+    "на MOMENTUM 4 все жесты фиксированные.":
+        "Only gestures the headphones allow to remap are shown: on MOMENTUM 4 "
+        "all gestures are fixed.",
     "Эквалайзер · 5 полос · экспериментально": "Equalizer · 5 bands · experimental",
     "Применить": "Apply",
     "Записать положения ползунков в наушники": "Write slider values to the headphones",

@@ -38,6 +38,10 @@ BG_NAMES = ["Непрозрачный", "Mica (полупрозрачный)", "
 LANG_CODES = ("ru", "en")
 LANG_NAMES = ["Русский", "English"]
 
+# Bass Boost реализован поверх эквалайзера: прибавка к нижним полосам
+# (штатный флаг 0x1008 наушники хранят, но к звуку не подключают)
+BASS_BOOST_GAINS = [40, 20, 0, 0, 0]
+
 
 # --------------------------------------------------------------------------- helpers
 class Bridge(QObject):
@@ -497,7 +501,8 @@ class MainWindow(QMainWindow):
         g = Group(tr("Режимы звука"))
         self.bass_cb = ToggleSwitch()
         self.bass_cb.toggled.connect(self.on_bass_toggled)
-        g.add_row("Bass Boost", self.bass_cb, tr("Усиление низких частот"))
+        g.add_row("Bass Boost", self.bass_cb,
+                  tr("Усиление низких частот (+4 дБ, поверх эквалайзера)"))
         lay.addWidget(g.widget)
 
         g = Group(tr("Эквалайзер · 5 полос · экспериментально"))
@@ -612,10 +617,7 @@ class MainWindow(QMainWindow):
         mmi_col.addLayout(btn_row)
         g.add_block(mmi_col, with_separator=False)
         g.add_footnote(tr("Показываются только жесты, которые наушники разрешают "
-                          "переназначать: на MOMENTUM 4 почти все жесты фиксированные."))
-        g.add_footnote(tr("«Сверхдолгое нажатие» — удержание сенсора 5–8 секунд с "
-                          "отпусканием. Назначение сохраняется в наушниках, но "
-                          "прошивка может не срабатывать на этот жест."))
+                          "переназначать: на MOMENTUM 4 все жесты фиксированные."))
         lay.addWidget(g.widget)
         lay.addStretch(1)
         return page
@@ -1057,7 +1059,11 @@ class MainWindow(QMainWindow):
             set_checked_silent(self.autopause_cb, s["autopause"])
         if s["bass"] is not None:
             set_checked_silent(self.bass_cb, s["bass"])
-        self._apply_eq_state(s["eq_user"], s["eq_curve"], s["eq_freqs"])
+        eq_user = s["eq_user"]
+        if s["bass"] and eq_user and all(g is not None for g in eq_user):
+            # ползунки показывают базовую кривую без прибавки Bass Boost
+            eq_user = [g - b for g, b in zip(eq_user, BASS_BOOST_GAINS)]
+        self._apply_eq_state(eq_user, s["eq_curve"], s["eq_freqs"])
         if s["sidetone"] is not None:
             self.sidetone.blockSignals(True)
             self.sidetone.setValue(s["sidetone"])
@@ -1137,7 +1143,10 @@ class MainWindow(QMainWindow):
             set_checked_silent(self.bass_cb, bool(data[0]))
         elif pdu == P.notification_of(P.Cmd.EQ_GET_BAND_GAIN) and len(data) == 5:
             curve = [b - 256 if b > 127 else b for b in data]
-            self._apply_eq_state(curve, curve, None)
+            shown = curve
+            if self.bass_cb.isChecked():
+                shown = [g - b for g, b in zip(curve, BASS_BOOST_GAINS)]
+            self._apply_eq_state(shown, curve, None)
 
     # ----------------------------------------------------------------- setting handlers
     def run_set(self, fn, revert_widget=None, revert_value=None):
@@ -1174,7 +1183,10 @@ class MainWindow(QMainWindow):
         self.run_set(lambda d: d.set_th_autopause(on), self.autopause_cb, not on)
 
     def on_bass_toggled(self, on: bool):
-        self.run_set(lambda d: d.set_bass_boost(on), self.bass_cb, not on)
+        gains = self._eq_target(on)
+        self.run_set(lambda d: (d.set_bass_boost(on), d.set_user_eq(gains)),
+                     self.bass_cb, not on)
+        QTimer.singleShot(700, self.refresh_eq_curve)
 
     def on_sidetone_changed(self):
         level = self.sidetone.value()
@@ -1230,9 +1242,17 @@ class MainWindow(QMainWindow):
             self.eq_apply_btn.setEnabled(True)
             self.eq_zero_btn.setEnabled(True)
 
-    def on_apply_eq(self):
+    def _eq_target(self, bass_on: bool) -> list[int]:
+        """Гейны для записи в наушники: ползунки + прибавка Bass Boost."""
         gains = [s.value() for s in self.eq_sliders]
-        self.run_set(lambda d: d.set_user_eq(gains))
+        if bass_on:
+            gains = [max(-60, min(60, g + b))
+                     for g, b in zip(gains, BASS_BOOST_GAINS)]
+        return gains
+
+    def on_apply_eq(self):
+        gains = self._eq_target(self.bass_cb.isChecked())
+        self.run_set(lambda d: (d.normalize_eq_bands(), d.set_user_eq(gains)))
         self.append_log(tr("EQ отправлен: {g}").format(g=gains))
         QTimer.singleShot(700, self.refresh_eq_curve)
 
@@ -1243,7 +1263,8 @@ class MainWindow(QMainWindow):
             s.blockSignals(False)
         for lbl in self.eq_value_labels:
             lbl.setText("0")
-        self.run_set(lambda d: d.set_user_eq([0, 0, 0, 0, 0]))
+        gains = self._eq_target(self.bass_cb.isChecked())
+        self.run_set(lambda d: d.set_user_eq(gains))
         self.append_log(tr("EQ сброшен в 0."))
         QTimer.singleShot(700, self.refresh_eq_curve)
 
@@ -1252,13 +1273,21 @@ class MainWindow(QMainWindow):
         if not dev:
             return
 
-        def apply(curve):
+        def load():
+            return dev.get_eq_curve(), dev.get_eq_band_freqs()
+
+        def apply(res):
+            curve, freqs = res
             if curve:
                 self.eq_curve_label.setText(
                     tr("Итоговая кривая (вместе с Sound Check): {values}")
                     .format(values=", ".join(str(v) for v in curve)))
+            if freqs:
+                for lbl, hz in zip(self.eq_freq_labels, freqs):
+                    if hz:
+                        lbl.setText(self._fmt_freq(hz))
 
-        self.bridge.run(dev.get_eq_curve, ok=apply, fail=lambda e: None)
+        self.bridge.run(load, ok=apply, fail=lambda e: None)
 
     def on_probe_eq(self):
         dev = self.dev
@@ -1293,6 +1322,9 @@ class MainWindow(QMainWindow):
                 w = item.widget()
                 if w:
                     w.deleteLater()
+            # жест (0,9) прошивка M4 хранит, но физически не генерирует —
+            # скрываем, чтобы не вводить в заблуждение
+            mapping = {k: v for k, v in mapping.items() if k != (0, 9)}
             if not mapping:
                 lbl = QLabel(tr("Наушники не разрешают переназначать жесты "
                                 "(ограничение прошивки MOMENTUM 4)."))

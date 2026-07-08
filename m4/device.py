@@ -7,6 +7,9 @@ from typing import Optional
 from . import protocol as P
 from .client import GaiaClient, GaiaError
 
+# Классическая сетка частот 5-полосного эквалайзера
+EQ_STANDARD_FREQS = (90, 325, 1500, 4000, 10000)
+
 
 @dataclass
 class PairedDevice:
@@ -143,6 +146,19 @@ class Momentum4:
         if data and len(data) == 5:
             return [self._i8(b) for b in data]
         return None
+
+    def set_eq_band_freq(self, band: int, hz: int):
+        payload = bytes([band]) + int(hz).to_bytes(2, "big")
+        self.c.request(P.Cmd.EQ_SET_BAND_FREQ, payload)
+
+    def normalize_eq_bands(self):
+        """Выставляет классическую сетку частот: на заводской конфигурации
+        полосы 3 и 4 обе стоят на 6500 Гц, и верх не регулируется."""
+        for band, hz in enumerate(EQ_STANDARD_FREQS):
+            try:
+                self.set_eq_band_freq(band, hz)
+            except Exception:  # noqa: BLE001
+                pass
 
     def get_eq_band_freqs(self) -> list[Optional[int]]:
         freqs = []
