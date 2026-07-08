@@ -123,6 +123,14 @@ _EN = {
     "MOMENTUM 4).":
         "The headphones do not allow gesture remapping (a MOMENTUM 4 firmware "
         "limitation).",
+    "«Сверхдолгое нажатие» — удержание сенсора 5–8 секунд с отпусканием. "
+    "Назначение сохраняется в наушниках, но прошивка может не срабатывать "
+    "на этот жест.":
+        "Extra long press means holding the touch panel for 5–8 seconds and "
+        "releasing. The assignment is stored in the headphones, but the "
+        "firmware may not trigger this gesture.",
+    "Функция срабатывает в момент отпускания после удержания":
+        "The action fires when you release the panel after holding it",
     "жест {n}": "gesture {n}",
     "код 0x{code}": "code 0x{code}",
     "1 касание": "1 tap",

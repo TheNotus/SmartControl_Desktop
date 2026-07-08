@@ -613,6 +613,9 @@ class MainWindow(QMainWindow):
         g.add_block(mmi_col, with_separator=False)
         g.add_footnote(tr("Показываются только жесты, которые наушники разрешают "
                           "переназначать: на MOMENTUM 4 почти все жесты фиксированные."))
+        g.add_footnote(tr("«Сверхдолгое нажатие» — удержание сенсора 5–8 секунд с "
+                          "отпусканием. Назначение сохраняется в наушниках, но "
+                          "прошивка может не срабатывать на этот жест."))
         lay.addWidget(g.widget)
         lay.addStretch(1)
         return page
@@ -1302,7 +1305,11 @@ class MainWindow(QMainWindow):
                     or tr("жест {n}").format(n=pattern)
                 if button:
                     pat_name = f"[{button}] {pat_name}"
-                self.mmi_grid.addWidget(QLabel(pat_name), row, 0)
+                pat_lbl = QLabel(pat_name)
+                if pattern in (5, 7, 9):
+                    pat_lbl.setToolTip(
+                        tr("Функция срабатывает в момент отпускания после удержания"))
+                self.mmi_grid.addWidget(pat_lbl, row, 0)
                 combo = QComboBox()
                 keys = list(P.MMI_FUNCTIONS.keys())
                 for k in keys:
