@@ -107,6 +107,12 @@ _EN = {
     "НЧ": "Low", "Н-СЧ": "L-Mid", "СЧ": "Mid", "В-СЧ": "H-Mid", "ВЧ": "High",
     "кГц": "kHz",
     "Гц": "Hz",
+    "дБ": "dB",
+    "Эквалайзер · 5 полос": "Equalizer · 5 bands",
+    "Диапазон ±6 дБ, полосы 63 Гц – 8 кГц — как в официальном приложении. "
+    "Изменения применяются кнопкой «Применить».":
+        "Range ±6 dB, bands 63 Hz – 8 kHz — same as the official app. "
+        "Changes take effect when you press Apply.",
     "Звонки": "Calls",
     "Свой голос в звонках (Sidetone)": "Your voice during calls (sidetone)",
     "0 — не слышать себя, 5 — максимум": "0 — don't hear yourself, 5 — maximum",

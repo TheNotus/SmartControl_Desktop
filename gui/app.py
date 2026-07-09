@@ -10,7 +10,7 @@ from PySide6.QtCore import QObject, QProcess, QSettings, Qt, QTimer, Signal
 from PySide6.QtGui import (QCloseEvent, QColor, QFont, QFontMetrics, QIcon,
                            QPainter, QPixmap)
 from PySide6.QtWidgets import (
-    QApplication, QCheckBox, QComboBox, QFrame, QGridLayout, QHBoxLayout,
+    QApplication, QCheckBox, QComboBox, QFrame, QHBoxLayout,
     QLabel, QLineEdit, QListWidget, QListWidgetItem, QMainWindow, QMenu,
     QMessageBox, QPlainTextEdit, QProgressBar, QPushButton, QScrollArea,
     QSlider, QStackedWidget, QSystemTrayIcon, QVBoxLayout, QWidget,
@@ -38,9 +38,8 @@ BG_NAMES = ["Непрозрачный", "Mica (полупрозрачный)", "
 LANG_CODES = ("ru", "en")
 LANG_NAMES = ["Русский", "English"]
 
-# Bass Boost реализован поверх эквалайзера: прибавка к нижним полосам
-# (штатный флаг 0x1008 наушники хранят, но к звуку не подключают)
-BASS_BOOST_GAINS = [40, 20, 0, 0, 0]
+# Единицы эквалайзера — 0.1 дБ, диапазон ±6 дБ
+# (сверено с официальным приложением по логу обмена)
 
 
 # --------------------------------------------------------------------------- helpers
@@ -316,7 +315,6 @@ class MainWindow(QMainWindow):
             (tr("Обзор"), "", self._page_dashboard()),
             (tr("Шумоподавление"), "", self._page_noise()),
             (tr("Звук"), "", self._page_sound()),
-            (tr("Сенсор и кнопки"), "", self._page_controls()),
             (tr("Подключения"), "", self._page_connections()),
             (tr("Система"), "", self._page_system()),
             (tr("Приложение"), "", self._page_app()),
@@ -501,11 +499,10 @@ class MainWindow(QMainWindow):
         g = Group(tr("Режимы звука"))
         self.bass_cb = ToggleSwitch()
         self.bass_cb.toggled.connect(self.on_bass_toggled)
-        g.add_row("Bass Boost", self.bass_cb,
-                  tr("Усиление низких частот (+4 дБ, поверх эквалайзера)"))
+        g.add_row("Bass Boost", self.bass_cb, tr("Усиление низких частот"))
         lay.addWidget(g.widget)
 
-        g = Group(tr("Эквалайзер · 5 полос · экспериментально"))
+        g = Group(tr("Эквалайзер · 5 полос"))
         self.eq_sliders = []
         self.eq_value_labels = []
         self.eq_freq_labels = []
@@ -515,7 +512,7 @@ class MainWindow(QMainWindow):
         for i in range(5):
             col = QVBoxLayout()
             col.setSpacing(4)
-            val = QLabel("0")
+            val = QLabel("0.0")
             val.setAlignment(Qt.AlignHCenter)
             val.setStyleSheet("color: #b8b8b8;")
             s = QSlider(Qt.Vertical)
@@ -524,7 +521,7 @@ class MainWindow(QMainWindow):
             s.setFixedHeight(130)
             s.setEnabled(False)
             s.valueChanged.connect(partial(
-                lambda lbl, v: lbl.setText(str(v)), val))
+                lambda lbl, v: lbl.setText(f"{v / 10:.1f}"), val))
             f = QLabel(band_names[i])
             f.setObjectName("hint")
             f.setAlignment(Qt.AlignHCenter)
@@ -563,8 +560,8 @@ class MainWindow(QMainWindow):
         self.eq_curve_label.setObjectName("hint")
         eq_col.addWidget(self.eq_curve_label)
         g.add_block(eq_col, with_separator=False)
-        g.add_footnote(tr("Экспериментальная функция. Значения в условных единицах — "
-                          "настраивайте на слух и нажимайте «Применить»."))
+        g.add_footnote(tr("Диапазон ±6 дБ, полосы 63 Гц – 8 кГц — как в официальном "
+                          "приложении. Изменения применяются кнопкой «Применить»."))
         lay.addWidget(g.widget)
 
         g = Group(tr("Звонки"))
@@ -584,40 +581,6 @@ class MainWindow(QMainWindow):
         st_widget.setLayout(st_wrap)
         g.add_row(tr("Свой голос в звонках (Sidetone)"), st_widget,
                   tr("0 — не слышать себя, 5 — максимум"))
-        lay.addWidget(g.widget)
-        lay.addStretch(1)
-        return page
-
-    def _page_controls(self) -> QWidget:
-        page, lay = self._scroll_page(tr("Сенсор и кнопки"))
-
-        g = Group(tr("Сенсорная панель"))
-        self.touch_cb = ToggleSwitch()
-        self.touch_cb.toggled.connect(self.on_touch_toggled)
-        g.add_row(tr("Блокировка сенсора (Touch Lock)"), self.touch_cb,
-                  tr("Касания игнорируются — полезно под шапкой или капюшоном"))
-        lay.addWidget(g.widget)
-
-        g = Group(tr("Жесты"))
-        self.mmi_grid = QGridLayout()
-        self.mmi_grid.setVerticalSpacing(8)
-        mmi_col = QVBoxLayout()
-        mmi_col.setSpacing(10)
-        mmi_col.addLayout(self.mmi_grid)
-        btn_row = QHBoxLayout()
-        self.mmi_refresh_btn = QPushButton(tr("Обновить"))
-        self.mmi_refresh_btn.setToolTip(tr("Запросить список жестов заново"))
-        self.mmi_refresh_btn.clicked.connect(self.load_mmi)
-        self.mmi_reset_btn = QPushButton(tr("Сбросить к заводским"))
-        self.mmi_reset_btn.setToolTip(tr("Вернуть заводское назначение жестов"))
-        self.mmi_reset_btn.clicked.connect(self.on_mmi_reset)
-        btn_row.addWidget(self.mmi_refresh_btn)
-        btn_row.addWidget(self.mmi_reset_btn)
-        btn_row.addStretch(1)
-        mmi_col.addLayout(btn_row)
-        g.add_block(mmi_col, with_separator=False)
-        g.add_footnote(tr("Показываются только жесты, которые наушники разрешают "
-                          "переназначать: на MOMENTUM 4 все жесты фиксированные."))
         lay.addWidget(g.widget)
         lay.addStretch(1)
         return page
@@ -676,6 +639,13 @@ class MainWindow(QMainWindow):
 
     def _page_system(self) -> QWidget:
         page, lay = self._scroll_page(tr("Система"))
+
+        g = Group(tr("Сенсорная панель"))
+        self.touch_cb = ToggleSwitch()
+        self.touch_cb.toggled.connect(self.on_touch_toggled)
+        g.add_row(tr("Блокировка сенсора (Touch Lock)"), self.touch_cb,
+                  tr("Касания игнорируются — полезно под шапкой или капюшоном"))
+        lay.addWidget(g.widget)
 
         g = Group(tr("Ношение"))
         self.onhead_cb = ToggleSwitch()
@@ -1017,7 +987,6 @@ class MainWindow(QMainWindow):
             return state
 
         self.bridge.run(load, ok=self._apply_state)
-        self.load_mmi()
         self.load_paired_devices()
 
     def _apply_state(self, s: dict):
@@ -1059,11 +1028,7 @@ class MainWindow(QMainWindow):
             set_checked_silent(self.autopause_cb, s["autopause"])
         if s["bass"] is not None:
             set_checked_silent(self.bass_cb, s["bass"])
-        eq_user = s["eq_user"]
-        if s["bass"] and eq_user and all(g is not None for g in eq_user):
-            # ползунки показывают базовую кривую без прибавки Bass Boost
-            eq_user = [g - b for g, b in zip(eq_user, BASS_BOOST_GAINS)]
-        self._apply_eq_state(eq_user, s["eq_curve"], s["eq_freqs"])
+        self._apply_eq_state(s["eq_user"], s["eq_curve"], s["eq_freqs"])
         if s["sidetone"] is not None:
             self.sidetone.blockSignals(True)
             self.sidetone.setValue(s["sidetone"])
@@ -1143,10 +1108,7 @@ class MainWindow(QMainWindow):
             set_checked_silent(self.bass_cb, bool(data[0]))
         elif pdu == P.notification_of(P.Cmd.EQ_GET_BAND_GAIN) and len(data) == 5:
             curve = [b - 256 if b > 127 else b for b in data]
-            shown = curve
-            if self.bass_cb.isChecked():
-                shown = [g - b for g, b in zip(curve, BASS_BOOST_GAINS)]
-            self._apply_eq_state(shown, curve, None)
+            self._apply_eq_state(curve, curve, None)
 
     # ----------------------------------------------------------------- setting handlers
     def run_set(self, fn, revert_widget=None, revert_value=None):
@@ -1183,10 +1145,7 @@ class MainWindow(QMainWindow):
         self.run_set(lambda d: d.set_th_autopause(on), self.autopause_cb, not on)
 
     def on_bass_toggled(self, on: bool):
-        gains = self._eq_target(on)
-        self.run_set(lambda d: (d.set_bass_boost(on), d.set_user_eq(gains)),
-                     self.bass_cb, not on)
-        QTimer.singleShot(700, self.refresh_eq_curve)
+        self.run_set(lambda d: d.set_bass_boost(on), self.bass_cb, not on)
 
     def on_sidetone_changed(self):
         level = self.sidetone.value()
@@ -1222,6 +1181,10 @@ class MainWindow(QMainWindow):
             return f"{hz / 1000:.1f} {tr('кГц')}".replace(".0", "")
         return f"{hz} {tr('Гц')}"
 
+    @staticmethod
+    def _fmt_curve(curve) -> str:
+        return ", ".join(f"{v / 10:.1f}" for v in curve) + " " + tr("дБ")
+
     def _apply_eq_state(self, user_gains, curve, freqs):
         if freqs:
             for lbl, hz in zip(self.eq_freq_labels, freqs):
@@ -1230,7 +1193,7 @@ class MainWindow(QMainWindow):
         if curve:
             self.eq_curve_label.setText(
                 tr("Итоговая кривая (вместе с Sound Check): {values}")
-                .format(values=", ".join(str(v) for v in curve)))
+                .format(values=self._fmt_curve(curve)))
         if user_gains and all(g is not None for g in user_gains):
             for s, g in zip(self.eq_sliders, user_gains):
                 s.blockSignals(True)
@@ -1238,22 +1201,15 @@ class MainWindow(QMainWindow):
                 s.blockSignals(False)
                 s.setEnabled(True)
             for lbl, g in zip(self.eq_value_labels, user_gains):
-                lbl.setText(str(g))
+                lbl.setText(f"{g / 10:.1f}")
             self.eq_apply_btn.setEnabled(True)
             self.eq_zero_btn.setEnabled(True)
 
-    def _eq_target(self, bass_on: bool) -> list[int]:
-        """Гейны для записи в наушники: ползунки + прибавка Bass Boost."""
-        gains = [s.value() for s in self.eq_sliders]
-        if bass_on:
-            gains = [max(-60, min(60, g + b))
-                     for g, b in zip(gains, BASS_BOOST_GAINS)]
-        return gains
-
     def on_apply_eq(self):
-        gains = self._eq_target(self.bass_cb.isChecked())
+        gains = [s.value() for s in self.eq_sliders]
         self.run_set(lambda d: (d.normalize_eq_bands(), d.set_user_eq(gains)))
-        self.append_log(tr("EQ отправлен: {g}").format(g=gains))
+        self.append_log(tr("EQ отправлен: {g}").format(
+            g=", ".join(f"{v / 10:.1f}" for v in gains) + " " + tr("дБ")))
         QTimer.singleShot(700, self.refresh_eq_curve)
 
     def on_zero_eq(self):
@@ -1262,9 +1218,8 @@ class MainWindow(QMainWindow):
             s.setValue(0)
             s.blockSignals(False)
         for lbl in self.eq_value_labels:
-            lbl.setText("0")
-        gains = self._eq_target(self.bass_cb.isChecked())
-        self.run_set(lambda d: d.set_user_eq(gains))
+            lbl.setText("0.0")
+        self.run_set(lambda d: d.set_user_eq([0, 0, 0, 0, 0]))
         self.append_log(tr("EQ сброшен в 0."))
         QTimer.singleShot(700, self.refresh_eq_curve)
 
@@ -1281,7 +1236,7 @@ class MainWindow(QMainWindow):
             if curve:
                 self.eq_curve_label.setText(
                     tr("Итоговая кривая (вместе с Sound Check): {values}")
-                    .format(values=", ".join(str(v) for v in curve)))
+                    .format(values=self._fmt_curve(curve)))
             if freqs:
                 for lbl, hz in zip(self.eq_freq_labels, freqs):
                     if hz:
@@ -1302,77 +1257,13 @@ class MainWindow(QMainWindow):
             for name, value in report.items():
                 self.append_log(f"  {name}: {value}")
             self.append_log(tr("Диагностика EQ завершена."))
-            self.switch_page(6)
+            self.switch_page(5)
 
         def fail(exc):
             self.eq_probe_btn.setEnabled(True)
             self.show_error(exc)
 
         self.bridge.run(dev.probe_eq, ok=done, fail=fail)
-
-    # ----------------------------------------------------------------- MMI
-    def load_mmi(self):
-        dev = self.dev
-        if not dev:
-            return
-
-        def apply(mapping: dict):
-            while self.mmi_grid.count():
-                item = self.mmi_grid.takeAt(0)
-                w = item.widget()
-                if w:
-                    w.deleteLater()
-            # жест (0,9) прошивка M4 хранит, но физически не генерирует —
-            # скрываем, чтобы не вводить в заблуждение
-            mapping = {k: v for k, v in mapping.items() if k != (0, 9)}
-            if not mapping:
-                lbl = QLabel(tr("Наушники не разрешают переназначать жесты "
-                                "(ограничение прошивки MOMENTUM 4)."))
-                lbl.setObjectName("hint")
-                lbl.setWordWrap(True)
-                self.mmi_grid.addWidget(lbl, 0, 0)
-                return
-            for row, ((button, pattern), function) in enumerate(sorted(mapping.items())):
-                pat_name = tr(P.MMI_PATTERNS.get(pattern, "")) \
-                    or tr("жест {n}").format(n=pattern)
-                if button:
-                    pat_name = f"[{button}] {pat_name}"
-                pat_lbl = QLabel(pat_name)
-                if pattern in (5, 7, 9):
-                    pat_lbl.setToolTip(
-                        tr("Функция срабатывает в момент отпускания после удержания"))
-                self.mmi_grid.addWidget(pat_lbl, row, 0)
-                combo = QComboBox()
-                keys = list(P.MMI_FUNCTIONS.keys())
-                for k in keys:
-                    combo.addItem(tr(P.MMI_FUNCTIONS[k]), k)
-                if function in keys:
-                    combo.setCurrentIndex(keys.index(function))
-                else:
-                    combo.addItem(tr("код 0x{code}").format(code=f"{function:02X}"),
-                                  function)
-                    combo.setCurrentIndex(combo.count() - 1)
-                combo.activated.connect(partial(self._on_mmi_changed, button,
-                                                pattern, combo))
-                self.mmi_grid.addWidget(combo, row, 1)
-            self.mmi_grid.setColumnStretch(1, 1)
-
-        self.bridge.run(dev.get_mmi_map, ok=apply, fail=lambda e: None)
-
-    def _on_mmi_changed(self, button: int, pattern: int, combo: QComboBox, _index: int):
-        function = combo.currentData()
-        self.run_set(lambda d: d.set_mmi(button, pattern, function))
-        pat_name = tr(P.MMI_PATTERNS.get(pattern, "")) \
-            or tr("жест {n}").format(n=pattern)
-        self.append_log(tr("Жест {p} -> {f}").format(p=pat_name,
-                                                     f=combo.currentText()))
-
-    def on_mmi_reset(self):
-        if QMessageBox.question(
-                self, tr("Сброс жестов"),
-                tr("Вернуть заводское назначение жестов?")) == QMessageBox.Yes:
-            self.run_set(lambda d: d.reset_mmi())
-            QTimer.singleShot(800, self.load_mmi)
 
     # ----------------------------------------------------------------- paired devices
     def load_paired_devices(self):

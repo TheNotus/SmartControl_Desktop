@@ -7,8 +7,8 @@ from typing import Optional
 from . import protocol as P
 from .client import GaiaClient, GaiaError
 
-# Классическая сетка частот 5-полосного эквалайзера
-EQ_STANDARD_FREQS = (90, 325, 1500, 4000, 10000)
+# Сетка частот 5-полосного эквалайзера — как в официальном приложении
+EQ_STANDARD_FREQS = (63, 250, 1000, 4000, 8000)
 
 
 @dataclass
