@@ -204,12 +204,13 @@ class Group:
         self.box.addWidget(wrap)
         return wrap
 
-    def add_footnote(self, text: str):
+    def add_footnote(self, text: str) -> QLabel:
         hl = QLabel(text)
         hl.setObjectName("hint")
         hl.setWordWrap(True)
         hl.setContentsMargins(4, 0, 4, 0)
         self._outer.addWidget(hl)
+        return hl
 
 
 def value_label(text: str = "—") -> QLabel:
@@ -501,6 +502,10 @@ class MainWindow(QMainWindow):
         self.bass_cb = ToggleSwitch()
         self.bass_cb.toggled.connect(self.on_bass_toggled)
         g.add_row("Bass Boost", self.bass_cb, tr("Усиление низких частот"))
+        self.bass_unavailable_hint = g.add_footnote(
+            tr("Недоступно, пока на наушниках выбран профиль Sound Personalization "
+               "(как и в официальном приложении)."))
+        self.bass_unavailable_hint.setVisible(False)
         lay.addWidget(g.widget)
 
         g = Group(tr("Эквалайзер · 5 полос"))
@@ -989,6 +994,7 @@ class MainWindow(QMainWindow):
             state["th_level"] = dev.get_transparency_level()
             state["autopause"] = dev.get_th_autopause()
             state["bass"] = dev.get_bass_boost()
+            state["eq_profile"] = dev.get_eq_profile()
             state["eq_user"] = dev.get_user_eq()
             state["eq_curve"] = dev.get_eq_curve()
             state["eq_freqs"] = dev.get_eq_band_freqs()
@@ -1047,6 +1053,7 @@ class MainWindow(QMainWindow):
             set_checked_silent(self.autopause_cb, s["autopause"])
         if s["bass"] is not None:
             set_checked_silent(self.bass_cb, s["bass"])
+        self._apply_bass_availability(s["eq_profile"])
         self._apply_eq_state(s["eq_user"], s["eq_curve"], s["eq_freqs"])
         if s["sidetone"] is not None:
             self.sidetone.blockSignals(True)
@@ -1079,11 +1086,11 @@ class MainWindow(QMainWindow):
             return
 
         def load():
-            return dev.get_battery(), dev.get_charging_status(), dev.get_codec(), \
-                dev.get_physical_state()
+            return (dev.get_battery(), dev.get_charging_status(), dev.get_codec(),
+                    dev.get_physical_state(), dev.get_eq_profile())
 
         def apply(res):
-            battery, charging, codec, wear = res
+            battery, charging, codec, wear, profile = res
             if battery is None and charging is None and codec is None and wear is None:
                 # наушники перестали отвечать (например, их переподключили
                 # в Windows) — рвём соединение, автоподключение восстановит
@@ -1095,6 +1102,7 @@ class MainWindow(QMainWindow):
             self.charge_label.setText(tr(P.CHARGING.get(charging, "—")))
             self.codec_label.setText(P.CODECS.get(codec, "—"))
             self.wear_label.setText(tr(P.PHYSICAL_STATE.get(wear, "—")))
+            self._apply_bass_availability(profile)
 
         self.bridge.run(load, ok=apply, fail=lambda e: None)
 
@@ -1180,6 +1188,16 @@ class MainWindow(QMainWindow):
 
     def on_bass_toggled(self, on: bool):
         self.run_set(lambda d: d.set_bass_boost(on), self.bass_cb, not on)
+
+    def _apply_bass_availability(self, profile: Optional[int]):
+        """Bass Boost несовместим с профилем Sound Personalization — так же
+        ведёт себя и официальное приложение (там переключатель просто
+        недоступен, пока выбрана Personalization)."""
+        if profile is None:
+            return
+        available = profile != P.EQ_PROFILE_SOUND_PERSONALIZATION
+        self.bass_cb.setEnabled(available)
+        self.bass_unavailable_hint.setVisible(not available)
 
     def on_sidetone_changed(self):
         level = self.sidetone.value()

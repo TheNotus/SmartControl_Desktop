@@ -193,6 +193,12 @@ class Cmd:
 # id is harmless, so the whole range is swept.
 FEATURES_TO_REGISTER = tuple(range(0, 17))
 
+# Значение profile из EQ_GET_PRESET, соответствующее выбранной на телефоне
+# Sound Personalization (эмпирически: именно это значение застали активным,
+# когда пользователь показал скриншот с выбранной Personalization).
+# Официальное приложение при ней блокирует Bass Boost.
+EQ_PROFILE_SOUND_PERSONALIZATION = 1
+
 CODECS = {
     0: "SBC", 1: "AAC", 2: "aptX", 3: "aptX-LL", 4: "MP3", 5: "aptX-HD",
     6: "Faststream", 7: "LHDC", 8: "aptX Adaptive", 9: "aptX Lossless",

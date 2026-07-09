@@ -83,8 +83,10 @@ _EN = {
     # --- sound ---
     "Режимы звука": "Sound modes",
     "Усиление низких частот": "Low frequency boost",
-    "Усиление низких частот (+4 дБ, поверх эквалайзера)":
-        "Low frequency boost (+4 dB, on top of the equalizer)",
+    "Недоступно, пока на наушниках выбран профиль Sound Personalization "
+    "(как и в официальном приложении).":
+        "Unavailable while the Sound Personalization profile is selected on "
+        "the headphones (same as in the official app).",
     "Показываются только жесты, которые наушники разрешают переназначать: "
     "на MOMENTUM 4 все жесты фиксированные.":
         "Only gestures the headphones allow to remap are shown: on MOMENTUM 4 "
