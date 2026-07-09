@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import sys
+import time
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 
@@ -868,7 +869,13 @@ class MainWindow(QMainWindow):
             self.connect_device()
 
     def connect_device(self):
-        if self._connecting or (self.client and self.client.connected):
+        if self._connecting:
+            # вотчдог: если попытка висит слишком долго — разрешаем новую
+            if time.monotonic() - self._connect_started < 120:
+                self.append_log(tr("Подключение уже выполняется..."))
+                return
+            self._connecting = False
+        if self.client and self.client.connected:
             return
         mac = self.mac_edit.text().strip()
         if not mac:
@@ -877,6 +884,7 @@ class MainWindow(QMainWindow):
             return
         self.settings.setValue("mac", mac)
         self._connecting = True
+        self._connect_started = time.monotonic()
         self.connect_btn.setEnabled(False)
         self.connect_btn.setText(tr("Подключение..."))
         self.append_log(tr("Подключение к {mac}...").format(mac=mac))
@@ -889,8 +897,13 @@ class MainWindow(QMainWindow):
             not msg.startswith(("TX", "RX")) else None,
         )
 
+        try:
+            saved_channel = int(self.settings.value("rfcomm_channel", 0)) or None
+        except (TypeError, ValueError):
+            saved_channel = None
+
         def do_connect():
-            channel = client.connect()
+            channel = client.connect(preferred_channel=saved_channel)
             client.register_notifications()
             return channel
 
@@ -900,6 +913,7 @@ class MainWindow(QMainWindow):
 
     def _on_connected(self, client: GaiaClient, channel: int):
         self._connecting = False
+        self.settings.setValue("rfcomm_channel", channel)
         self.client = client
         self.dev = Momentum4(client)
         self.connect_btn.setEnabled(True)
@@ -916,9 +930,14 @@ class MainWindow(QMainWindow):
         self._connecting = False
         self.connect_btn.setEnabled(True)
         self.connect_btn.setText(tr("Подключить"))
+        hint_text = tr("Если на телефоне открыт Sennheiser Smart Control, "
+                       "закройте его: наушники допускают только одно "
+                       "приложение управления одновременно.")
         self.append_log(tr("Ошибка подключения: {e}").format(e=exc))
+        self.append_log(hint_text)
         if not self.isHidden():
-            QMessageBox.warning(self, tr("Не удалось подключиться"), str(exc))
+            QMessageBox.warning(self, tr("Не удалось подключиться"),
+                                f"{exc}\n\n{hint_text}")
 
     def disconnect_device(self):
         self._user_disconnected = True
@@ -1065,6 +1084,11 @@ class MainWindow(QMainWindow):
 
         def apply(res):
             battery, charging, codec, wear = res
+            if battery is None and charging is None and codec is None and wear is None:
+                # наушники перестали отвечать (например, их переподключили
+                # в Windows) — рвём соединение, автоподключение восстановит
+                self.force_reconnect()
+                return
             if battery is not None:
                 self.battery_bar.setValue(battery)
                 self.tray.setToolTip(tr("MOMENTUM 4 — батарея {n}%").format(n=battery))
@@ -1073,6 +1097,16 @@ class MainWindow(QMainWindow):
             self.wear_label.setText(tr(P.PHYSICAL_STATE.get(wear, "—")))
 
         self.bridge.run(load, ok=apply, fail=lambda e: None)
+
+    def force_reconnect(self):
+        """Принудительный разрыв «мёртвого» соединения без блокировки
+        автоподключения."""
+        if self.client:
+            client = self.client
+            self.client = None
+            self.dev = None
+            self.bridge.run(client.close)
+        self.on_disconnected(tr("Связь потеряна, переподключение..."))
 
     # ----------------------------------------------------------------- notifications
     def on_notification(self, vendor: int, pdu: int, data: bytes):

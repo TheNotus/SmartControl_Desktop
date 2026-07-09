@@ -310,6 +310,12 @@ _EN = {
         "No paired MOMENTUM 4 found.\nPair the headphones with Windows first "
         "(Settings → Bluetooth & devices).",
     "Подключение к {mac}...": "Connecting to {mac}...",
+    "Подключение уже выполняется...": "Connection attempt already in progress...",
+    "Связь потеряна, переподключение...": "Connection lost, reconnecting...",
+    "Если на телефоне открыт Sennheiser Smart Control, закройте его: "
+    "наушники допускают только одно приложение управления одновременно.":
+        "If Sennheiser Smart Control is open on your phone, close it: the "
+        "headphones allow only one control app at a time.",
     "Подключено (RFCOMM канал {ch}). Загрузка состояния...":
         "Connected (RFCOMM channel {ch}). Loading state...",
     "Ошибка подключения: {e}": "Connection error: {e}",

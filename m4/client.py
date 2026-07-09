@@ -54,9 +54,14 @@ class GaiaClient:
         self._closing = False
 
     # ------------------------------------------------------------- connect
-    def connect(self, per_channel_timeout: float = 4.0) -> int:
+    def connect(self, per_channel_timeout: float = 4.0,
+                preferred_channel: int | None = None) -> int:
         errors = []
-        for ch in RFCOMM_CHANNELS:
+        channels = list(RFCOMM_CHANNELS)
+        if preferred_channel in channels:
+            channels.remove(preferred_channel)
+            channels.insert(0, preferred_channel)
+        for ch in channels:
             sock = None
             try:
                 sock = socket.socket(socket.AF_BLUETOOTH, socket.SOCK_STREAM,
@@ -68,9 +73,18 @@ class GaiaClient:
                 self._buffer = b""
                 self._closing = False
                 self._start_reader()
-                # verify this is the GAIA channel with a real request
-                payload = self.request(P.Cmd.GET_ANC, timeout=2.5)
-                if len(payload) >= 1:
+                # verify this is the GAIA channel with a real request;
+                # сразу после переподключения в Windows устройство может
+                # отвечать не с первого раза — пробуем дважды
+                payload = None
+                for attempt in (1, 2):
+                    try:
+                        payload = self.request(P.Cmd.GET_ANC, timeout=3.0)
+                        break
+                    except TimeoutError:
+                        if attempt == 2:
+                            raise
+                if payload is not None and len(payload) >= 1:
                     self.on_log(tr("GAIA-канал найден: RFCOMM {ch}").format(ch=ch))
                     return ch
                 raise RuntimeError("empty response")
