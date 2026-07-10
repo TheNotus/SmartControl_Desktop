@@ -147,8 +147,8 @@ class Cmd:
     EQ_GET_BAND_RANGE = 0x100F
     EQ_SET_USER_GAIN = 0x1010         # (band u8, gain i16) — таблица-хранилище,
     EQ_GET_USER_GAIN = 0x1011         # в звуковой тракт не подмешивается
-    EQ_SET_PRESET = 0x1012            # (slot u8, preset u8)
-    EQ_GET_PRESET = 0x1013            # -> (slot, preset)
+    EQ_SET_PRESET = 0x1012            # (slot u8, value u8); назначение неясно:
+    EQ_GET_PRESET = 0x1013            # телефон при смене пресетов его не меняет
 
     # ---- paired devices list (feature 10) ----
     PDL_SIZE = 0x1400                 # -> u16 count
@@ -192,12 +192,6 @@ class Cmd:
 # settings, 10 -> user EQ dump, 13 -> transparent hearing). Registering every
 # id is harmless, so the whole range is swept.
 FEATURES_TO_REGISTER = tuple(range(0, 17))
-
-# Значение profile из EQ_GET_PRESET, соответствующее выбранной на телефоне
-# Sound Personalization (эмпирически: именно это значение застали активным,
-# когда пользователь показал скриншот с выбранной Personalization).
-# Официальное приложение при ней блокирует Bass Boost.
-EQ_PROFILE_SOUND_PERSONALIZATION = 1
 
 CODECS = {
     0: "SBC", 1: "AAC", 2: "aptX", 3: "aptX-LL", 4: "MP3", 5: "aptX-HD",

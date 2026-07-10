@@ -131,14 +131,6 @@ class Momentum4:
     def set_bass_boost(self, on: bool):
         self.c.request(P.Cmd.SET_BASS_BOOST, bytes([1 if on else 0]))
 
-    def get_eq_profile(self) -> Optional[int]:
-        """0 = ручной/custom EQ. Любое другое значение — именованный пресет
-        (Sound Personalization, Rock, Pop и т.п.), выбранный в Smart Control.
-        Bass Boost совместим только с ручным профилем (0) — так же ведёт
-        себя и официальное приложение."""
-        data = self.c.try_request(P.Cmd.EQ_GET_PRESET, b"\x00", timeout=2.0)
-        return data[1] if data and len(data) >= 2 else None
-
     @staticmethod
     def _i8(b: int) -> int:
         return b - 256 if b > 127 else b
