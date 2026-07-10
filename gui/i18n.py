@@ -316,10 +316,10 @@ _EN = {
     "Подключение к {mac}...": "Connecting to {mac}...",
     "Подключение уже выполняется...": "Connection attempt already in progress...",
     "Связь потеряна, переподключение...": "Connection lost, reconnecting...",
-    "Если на телефоне открыт Sennheiser Smart Control, закройте его: "
-    "наушники допускают только одно приложение управления одновременно.":
-        "If Sennheiser Smart Control is open on your phone, close it: the "
-        "headphones allow only one control app at a time.",
+    "Проверьте, что наушники включены и находятся рядом. Если запущена "
+    "вторая копия приложения на этом ПК — закройте её.":
+        "Make sure the headphones are powered on and nearby. If another copy "
+        "of this app is running on this PC, close it.",
     "Подключено (RFCOMM канал {ch}). Загрузка состояния...":
         "Connected (RFCOMM channel {ch}). Loading state...",
     "Ошибка подключения: {e}": "Connection error: {e}",

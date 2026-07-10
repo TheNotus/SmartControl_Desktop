@@ -213,6 +213,17 @@ class Group:
         return hl
 
 
+def codec_name(codec) -> str:
+    """Имя кодека; неизвестные значения показываем номером, а не прочерком —
+    так пользователи смогут сообщить о новых кодеках прошивки."""
+    if codec is None:
+        return "—"
+    known = P.CODECS.get(codec)
+    if known:
+        return known
+    return tr("код {n}").format(n=codec)
+
+
 def value_label(text: str = "—") -> QLabel:
     lbl = QLabel(text)
     lbl.setStyleSheet("color: #b8b8b8;")
@@ -934,9 +945,9 @@ class MainWindow(QMainWindow):
         self._connecting = False
         self.connect_btn.setEnabled(True)
         self.connect_btn.setText(tr("Подключить"))
-        hint_text = tr("Если на телефоне открыт Sennheiser Smart Control, "
-                       "закройте его: наушники допускают только одно "
-                       "приложение управления одновременно.")
+        hint_text = tr("Проверьте, что наушники включены и находятся рядом. "
+                       "Если запущена вторая копия приложения на этом ПК — "
+                       "закройте её.")
         self.append_log(tr("Ошибка подключения: {e}").format(e=exc))
         self.append_log(hint_text)
         if not self.isHidden():
@@ -1023,7 +1034,7 @@ class MainWindow(QMainWindow):
             self.battery_bar.setValue(s["battery"])
             self.tray.setToolTip(tr("MOMENTUM 4 — батарея {n}%").format(n=s["battery"]))
         self.charge_label.setText(tr(P.CHARGING.get(s["charging"], "—")))
-        self.codec_label.setText(P.CODECS.get(s["codec"], "—"))
+        self.codec_label.setText(codec_name(s["codec"]))
         self.wear_label.setText(tr(P.PHYSICAL_STATE.get(s["wear"], "—")))
 
         if s["anc"]:
@@ -1097,7 +1108,7 @@ class MainWindow(QMainWindow):
                 self.battery_bar.setValue(battery)
                 self.tray.setToolTip(tr("MOMENTUM 4 — батарея {n}%").format(n=battery))
             self.charge_label.setText(tr(P.CHARGING.get(charging, "—")))
-            self.codec_label.setText(P.CODECS.get(codec, "—"))
+            self.codec_label.setText(codec_name(codec))
             self.wear_label.setText(tr(P.PHYSICAL_STATE.get(wear, "—")))
 
         self.bridge.run(load, ok=apply, fail=lambda e: None)
@@ -1141,7 +1152,7 @@ class MainWindow(QMainWindow):
         elif pdu == P.notification_of(P.Cmd.GET_PHYSICAL_STATE) and data:
             self.wear_label.setText(tr(P.PHYSICAL_STATE.get(data[0], "—")))
         elif pdu == P.notification_of(P.Cmd.GET_CODEC) and data:
-            self.codec_label.setText(P.CODECS.get(data[0], "—"))
+            self.codec_label.setText(codec_name(data[0]))
         elif pdu == P.notification_of(P.Cmd.GET_BASS_BOOST) and data:
             set_checked_silent(self.bass_cb, bool(data[0]))
         elif pdu == P.notification_of(P.Cmd.EQ_GET_BAND_GAIN) and len(data) == 5:
